@@ -24,6 +24,9 @@ from pause import pause
 from unidecode import unidecode
 import psutil
 import clipboard
+import argparse
+import get_version
+import json, ast
 
 if sys.version_info.major == 3:
 	raw_input = input
@@ -499,7 +502,7 @@ class TorrentDownloads(object):
 	def navigator(self, query_search = None, stype = None, url_query = None, downloadPath = ".", overwrite = None, home = False, nlist = 3, page_return = None, proxies=None):
 		q = None
 		data_result, data_result_list, page = [], [], []
-		if self.get_width() < 115:
+		if self.get_width() < 115 and nlist == 3:
 			nlist = 1
 		n = 1
 		if proxies and isinstance(proxies, dict):
@@ -522,7 +525,7 @@ class TorrentDownloads(object):
 			print(make_colors(i.get('title'), 'b', colors[data_result.index(i)]))
 			self.makeList(data_list, nlist)
 
-		qnote = "[" + make_colors(str(self.PID), 'b', 'lc') + ":" + make_colors(str(self.MEM), 'b', 'ly') + "] " + make_colors("Select N[n]umber to Download", 'lg') + " [" + make_colors('[m]n[m] = get magnet then copy to clipboard', 'ly') + ", " + make_colors('s = search', 'lg') + ", " + make_colors("[q]uit | e[x]it", 'lr') + "]: "
+		qnote = "[" + make_colors(str(self.PID), 'b', 'lc') + ":" + make_colors(str(self.MEM), 'b', 'ly') + "] " + make_colors("Select N[n]umber to Download", 'lg') + " [" + make_colors('[m]n[m] = get magnet then copy to clipboard', 'ly') + ", " + make_colors('s = search', 'lg') + ", " + make_colors('[N]n[N] = length list, default = 3', 'lm') + ", " + make_colors("[q]uit | e[x]it", 'lr') + "]: "
 		q = raw_input(qnote)
 		while 1:
 			if not q:
@@ -574,6 +577,12 @@ class TorrentDownloads(object):
 			debug(itorrent = data_details.get('itorrent'))
 			if data_details.get('magnet'):
 				clipboard.copy(data_details.get('magnet'))
+		elif q[-1] == 'm' and q[:-1].isdigit():
+			nlist = int(q[:-1])
+			return self.navigator(query_search, stype, url_query, downloadPath, overwrite, home, nlist, page_return, proxies)
+		elif q[0] == 'm' and q[1:].isdigit():
+			nlist = int(q[1:])
+			return self.navigator(query_search, stype, url_query, downloadPath, overwrite, home, nlist, page_return, proxies)
 		elif q == 's':
 			qs = raw_input(make_colors("search:", 'ly') + " ")
 			if qs:
@@ -593,10 +602,41 @@ class TorrentDownloads(object):
 				sys.exit()
 		return self.run(query_search, stype, url_query, downloadPath, overwrite, home, nlist, page_return, proxies)
 
+	@classmethod
+	def usage(self):
+		parser = argparse.ArgumentParser()
+		parser.add_argument('-s', '--search', action = 'store', help = 'Direct Search for')
+		parser.add_argument('-n', '--nlist', action = 'store', help = 'Show with list length', type = int)
+		parser.add_argument('-d', '--download-path', action = 'store', help = 'Save download to dir')
+		parser.add_argument('-x', '--proxies', action = 'store', help = 'use proxies, format: {"http":http://"host:ip", "https":https://"host:ip"}')
+		parser.add_argument('-v', '--version', action = 'store_true', help = 'Show this app version number')
+		if len(sys.argv) == 1:
+			parser.print_help()
+		else:
+			args = parser.parse_args()
+			if args.version:
+				print(make_colors("VERSION:", 'ly') + " " + make_colors(get_version.get(), 'b', 'lc'))
+				sys.exit()
+			proxies = {}
+			if args.proxies:
+				try:
+					proxies = json.loads(args.proxies)
+				except:
+					proxies = ast.literal_eval(args.proxies)
+			if proxies:
+				if not isinstance(args.proxies, dict): proxies = {}
+
+			self.run(args.search, nlist = args.nlist, downloadPath = args.download_path, proxies = args.proxies)
+
+def usage():
+	return TorrentDownloads.usage()
+
 if __name__ == '__main__':
+
+	TorrentDownloads.usage()
 	# TorrentDownloads.home()
 	# TorrentDownloads.navigator()
-	TorrentDownloads.run()
+	# TorrentDownloads.run()
 	# url = "https://www.torrentdownloads.pro/torrent/1703817039/Mona-Lisa-And-The-Blood-Moon-%282021%29-%5B720p%5D-%5BWEBRip%5D-%5BYTS-MX%5D"
 	# url1 = "https://www.torrentdownloads.pro/torrent/1703815335/The-Munsters-%282022%29-%5B720p%5D-%5BBluRay%5D-%5BYTS-MX%5D"
 	# data = TorrentDownloads.detail(url)
