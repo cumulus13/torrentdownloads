@@ -262,7 +262,8 @@ class TorrentDownloads(object):
 				grey_bar3 = grey_bar3[4:]
 
 			for grey in grey_bar3:
-				if len(grey.text) > 10:
+				if len(grey.text) > 10 and not grey.text == "No torrents":
+					debug(grey = grey)
 					leech, seed, size = '', '', ''
 					name, link, link2 = '', '', ''
 					grey_data = {}
