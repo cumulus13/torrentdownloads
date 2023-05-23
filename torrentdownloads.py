@@ -20,7 +20,11 @@ import re
 import math
 import inspect
 from pprint import pprint
-from pause import pause
+try:
+	from pause import pause
+except:
+	def pause(*args, **kwargs):
+		return None
 from unidecode import unidecode
 import psutil
 import clipboard
