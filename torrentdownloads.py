@@ -21,10 +21,10 @@ import math
 import inspect
 from pprint import pprint
 try:
-	from pause import pause
+    from pause import pause
 except:
-	def pause(*args, **kwargs):
-		return None
+    def pause(*args, **kwargs):
+        return None
 from unidecode import unidecode
 import psutil
 import clipboard
@@ -72,8 +72,8 @@ class TorrentDownloads(object):
 
     HEADERS = {
         'accept':'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-            'accept-encoding': 'gzip, deflate',
-                'sec-ch-ua-platform': "Linux",
+        'accept-encoding': 'gzip, deflate',
+            'sec-ch-ua-platform': "Linux",
                 'sec-fetch-mode': 'navigate',
                 'upgrade-insecure-requests': '1',
                 'sec-fetch-user': '?1',
@@ -350,13 +350,13 @@ class TorrentDownloads(object):
                         # pause()
                         grey_data.update(
                             {
-                                                        'name': name,
-                                                            'link': link,
-                                                                'link2': link2,
+                                'name': name,
+                                                        'link': link,
+                                                            'link2': link2,
                                                                 'leech': leech,
                                                                 'seed': seed,
                                                                 'size': size
-                                                    })
+                            })
                         greys.append(grey_data)
                         data_list.append(grey_data)
             if greys:
@@ -376,8 +376,8 @@ class TorrentDownloads(object):
             debug(i = i)
             result_search_list.append(str(str(n).zfill(len(str(len_data)))) + ". " + make_colors(i.get('name'), color) +
                                       make_colors(" [", 'red') +
-                                                  make_colors("{0}".format(i.get('size').strip()), 'white', 'on_red') +
-                                                                                "|" +
+                                      make_colors("{0}".format(i.get('size').strip()), 'white', 'on_red') +
+                                                  "|" +
                                                                                 make_colors("{0}".format(i.get('leech')), 'black', 'on_yellow') +
                                                                                 "|" +
                                                                                 make_colors("{0}".format(i.get('seed')), 'black', 'on_cyan') +
@@ -610,14 +610,15 @@ class TorrentDownloads(object):
         elif q.lower() in ('q', 'quit', 'exit', 'x'):
             sys.exit(make_colors('System Exit ....', 'b', 'ly'))
         elif  q.lower() == 'h':
-            return self.navigator(query_search, stype,
-                                 url_query,
-                                 downloadPath,
-                                 overwrite,
-                                 home,
-                                 nlist,
-                                 page_return,
-                                 proxies)
+            self.navigator(proxies = proxies, nlist = nlist, downloadPath = downloadPath, home = home)
+            #return self.navigator(query_search, stype,
+                                  #url_query,
+                                 #downloadPath,
+                                 #overwrite,
+                                 #home,
+                                 #nlist,
+                                 #page_return,
+                                 #proxies)
         else:
             if q: query_search = q
             return self.navigator(query_search, downloadPath = downloadPath, overwrite = overwrite, nlist = nlist, page_return = page_return, proxies = proxies)
