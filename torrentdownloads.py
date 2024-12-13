@@ -3,16 +3,23 @@
 from __future__ import print_function
 
 import os, sys
+import ctraceback
+sys.excepthook = ctraceback.CTraceback
 
-sys.path.insert(0, '/mnt/sda3/PROJECTS/configset')
+if 'linux' in sys.platform:
+    sys.path.insert(0, '/mnt/sda3/PROJECTS/configset')
 
 import requests
 
 from bs4 import BeautifulSoup as bs
 from make_colors import make_colors
+# if any('debug' in i.lower() for i in  os.environ):
 from pydebugger.debug import debug
+# else:
+    # def debug(*args, **kwargs):
+        # return
 from configset import configset
-import configset as configme
+#import configset as configme
 import progressbar
 import traceback
 import time
@@ -31,6 +38,11 @@ import clipboard
 import argparse
 import get_version
 import json, ast
+
+from rich import traceback as rich_traceback, console
+import shutil
+rich_traceback.install(theme = 'fruity', max_frames = 30, width = shutil.get_terminal_size()[0])
+console = console.Console()
 
 if sys.version_info.major == 3:
     raw_input = input
@@ -73,12 +85,12 @@ class TorrentDownloads(object):
     HEADERS = {
         'accept':'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
         'accept-encoding': 'gzip, deflate',
-            'sec-ch-ua-platform': "Linux",
-                'sec-fetch-mode': 'navigate',
-                'upgrade-insecure-requests': '1',
-                'sec-fetch-user': '?1',
-                'sec-fetch-dest': 'document',
-                'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36'
+        'sec-ch-ua-platform': "Linux",
+        'sec-fetch-mode': 'navigate',
+        'upgrade-insecure-requests': '1',
+        'sec-fetch-user': '?1',
+        'sec-fetch-dest': 'document',
+        'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36'
     }
 
     SESS.headers.update(HEADERS)
@@ -109,6 +121,7 @@ class TorrentDownloads(object):
         debug(func = func)
         try:
             data = getattr(soup, func)(*args)
+            debug(data = data)
             if not data:
                 # print(make_colors("error:", 'lw', 'r') + " " + make_colors("Failed to get:", 'lr') + " " + make_colors("`" + " ".join([str(i) for i in args]) + "`", 'ly'))
                 # sys.exit(0)
@@ -118,14 +131,15 @@ class TorrentDownloads(object):
             debug(data = data)
             return data
         except Exception as e:
+            ctraceback.CTraceback(*sys.exc_info())
             debug(inspect_stack = inspect.stack())
-            # print(make_colors("error:", 'lw', 'r') + " " + make_colors(e, 'ly'))
-            if os.getenv('TRACEBACK'):
+            if os.getenv('TRACEBACK') == '1':
                 print(make_colors("error full:", 'lw', 'r') + " " + make_colors(str(traceback.format_exc()), 'ly'))
-            # sys.exit()
             if severity == 'debug':
                 raise Exception(make_colors("error:", 'lw', 'r') + " " + make_colors(str(e), 'ly'))
-            else: return False
+            else:
+                print(make_colors("error [validation]:", 'lw', 'r') + " " + make_colors(e, 'ly'))
+                return False
 
     @classmethod
     def connect(self, url = None, method='get', n_try = 10, encoding = False, **kwargs):
@@ -142,6 +156,7 @@ class TorrentDownloads(object):
                 req.encoding = req.apparent_encoding
                 break
             except Exception as e:
+                ctraceback.CTraceback(*sys.exc_info())
                 task = make_colors("error", 'lw', 'r')
                 subtask = make_colors(e, 'ly') + " "
                 debug(n_try = n_try)
@@ -155,25 +170,34 @@ class TorrentDownloads(object):
                     print(make_colors("error:", 'lw', 'r') + " " + make_colors(e, 'ly'))
                     sys.exit(make_colors(traceback.format_exc(), 'r', 'lw'))
         self.BAR.finish()
+        debug(req = req)
+        self.write('connect_req_result', req.content)
         return req
 
     @classmethod
     def write(self, name, content):
-        if os.getenv('DEBUG') or os.getenv('DEBUG_SERVER') or os.getenv('DEBUGGER_SERVER'):
-            with open(os.path.join(os.path.dirname(os.path.realpath(__file__)), name + '.html'), 'w') as cf:
-                if hasattr(content, 'decode'):
+        if os.getenv('DEBUG') or os.getenv('DEBUG_SERVER') or os.getenv('DEBUGGER_SERVER') or os.getenv('VERBOSE') == '1':
+            file_out = os.path.join(os.path.dirname(os.path.realpath(__file__)), name + '.html')
+            debug(file_out = file_out)
+            with open(file_out, 'wb') as cf:
+                # if hasattr(content, 'decode'):
+                try:
+                    cf.write(content)
+                except:
+                    # ctraceback.CTraceback(*sys.exc_info())
                     try:
-                        cf.write(content.decode('utf-8', errors = 'replace'))
+                        cf.write(bytes(content, encoding='utf-8', errors = 'replace'))
                     except:
-                        pass
-                else:
-                    try:
-                        cf.write(content)
-                    except:
-                        try:
-                            cf.write(unidecode(content))
-                        except:
-                            pass
+                        ctraceback.CTraceback(*sys.exc_info())
+                # else:
+                #     try:
+                #         cf.write(content)
+                #     except:
+                #         ctraceback.CTraceback(*sys.exc_info())
+                #         try:
+                #             cf.write(unidecode(content))
+                #         except:
+                #             ctraceback.CTraceback(*sys.exc_info())
 
     @classmethod
     def makeList(self, alist, ncols, vertically=True, file=None):
@@ -207,8 +231,7 @@ class TorrentDownloads(object):
         debug(len_content = len(content))
         title, _title, title_url, title_rss = '', '', '', ''
         is_search = False
-        if content:
-            is_search = True
+        if content: is_search = True
         debug(is_search = is_search)
         data = []
         data_list = []
@@ -270,15 +293,21 @@ class TorrentDownloads(object):
 
             grey_bar3 = self.valid(i, 'find_all', ('div', {'class':(re.compile('grey_bar3'))}))
             debug(grey_bar3 = grey_bar3)
-
+            grey_bar3_0 = grey_bar3
             self.write('grey_bar3', "\n".join([str(x) for x in grey_bar3]))
 
             greys = []
 
+            debug(is_search = is_search)
             if not is_search:
                 grey_bar3 = grey_bar3[1:]
+                debug(grey_bar3 = grey_bar3)
             else:
                 grey_bar3 = grey_bar3[4:]
+                debug(grey_bar3 = grey_bar3)
+                if len(grey_bar3) == 1 and len(grey_bar3[0].text.strip()) < 1:
+                    grey_bar3 = grey_bar3_0[1:]
+                    debug(grey_bar3 = grey_bar3)
 
             for grey in grey_bar3:
                 if len(grey.text) > 10 and not grey.text == "No torrents":
@@ -351,14 +380,15 @@ class TorrentDownloads(object):
                         grey_data.update(
                             {
                                 'name': name,
-                                                        'link': link,
-                                                            'link2': link2,
-                                                                'leech': leech,
-                                                                'seed': seed,
-                                                                'size': size
+                                'link': link,
+                                'link2': link2,
+                                'leech': leech,
+                                'seed': seed,
+                                'size': size
                             })
                         greys.append(grey_data)
                         data_list.append(grey_data)
+            debug(greys = greys)
             if greys:
                 add.update({'data': greys})
                 data.append(add)
@@ -374,14 +404,16 @@ class TorrentDownloads(object):
             return result_search_list
         for i in data:
             debug(i = i)
-            result_search_list.append(str(str(n).zfill(len(str(len_data)))) + ". " + make_colors(i.get('name'), color) +
-                                      make_colors(" [", 'red') +
-                                      make_colors("{0}".format(i.get('size').strip()), 'white', 'on_red') +
-                                                  "|" +
-                                                                                make_colors("{0}".format(i.get('leech')), 'black', 'on_yellow') +
-                                                                                "|" +
-                                                                                make_colors("{0}".format(i.get('seed')), 'black', 'on_cyan') +
-                                                                                make_colors("]", 'red'))  #.format(
+            result_search_list.append(
+                str(str(n).zfill(len(str(len_data)))) + ". " + \
+                make_colors(i.get('name'), color) + \
+                make_colors(" [", 'red') + \
+                make_colors("{0}".format(i.get('size').strip()), 'white', 'on_red') + "|" + \
+                make_colors("{0}".format(i.get('leech')), 'black', 'on_yellow') + "|" + \
+                make_colors("{0}".format(i.get('seed')), 'black', 'on_cyan') + \
+                make_colors("]", 'red')
+            )
+            
             n += 1
         return result_search_list, n
 
@@ -402,11 +434,20 @@ class TorrentDownloads(object):
         debug(url = url)
         magnet, hash_secret, category, name, added, last_update_date, update_link, alternative, trackers, file_list = '', '', '', '', '', '', '', '', [], []
         content = self.connect(url, timeout=10, headers = self.HEADERS).content
+        debug(content = content)
+        if not content:
+            content = self.SESS.get(url).content
+            debug(content = content)
+            self.write(content)
         b = bs(content, 'lxml')
         self.write('detail', content)
         left_container = self.valid(b, 'find', ('div', {'class':'left_container'}))
+        debug(left_container = left_container)
         if not left_container:
-            return {}
+            left_container = b.find('div', {'class':'left_container'})
+            debug(left_container = left_container)
+            if not left_container:
+                return {}
         torrent_download_box = self.valid(left_container, 'find', ('div', {'class':'torrent_download_box'}))
 
         category_data = self.valid(torrent_download_box, 'find_all', ('a'))
@@ -436,6 +477,8 @@ class TorrentDownloads(object):
         debug(hash_secret = hash_secret)
 
         magnet_data = self.valid(grey_bar1[3], 'find', ('p'), 'debug')
+        print(f"magnet_data: {magnet_data}")
+        debug(magnet_data = magnet_data)
 
         if magnet_data:
             magnet = self.valid(magnet_data, 'find', ('a'))
@@ -522,16 +565,14 @@ class TorrentDownloads(object):
     def navigator(self, query_search = None, stype = None, url_query = None, downloadPath = ".", overwrite = None, home = False, nlist = 3, page_return = None, proxies=None):
         q = None
         data_result, data_result_list, page = [], [], []
-        if self.get_width() < 115 and nlist == 3:
-            nlist = 1
+        if self.get_width() < 115 and nlist == 3: nlist = 1
         n = 1
         if proxies and isinstance(proxies, dict):
-            if proxies.get('http') or proxies.get('https'):
-                self.SESS.update({'proxies': proxies})
+            if proxies.get('http') or proxies.get('https'): self.SESS.update({'proxies': proxies})
         if downloadPath == ".": downloadPath = os.getcwd()
         if not home:
-            if not stype:
-                stype = 'all'
+            if not stype: stype = 'all'
+        #console.log(f"query_search: {query_search}")
         if query_search:
             data_result, data_result_list, page = self.search(query_search, stype)
             debug(data_result1 = data_result)
@@ -547,89 +588,83 @@ class TorrentDownloads(object):
 
         qnote = "[" + make_colors(str(self.PID), 'b', 'lc') + ":" + make_colors(str(self.MEM), 'b', 'ly') + "] " + make_colors("Select N[n]umber to Download", 'lg') + " [" + make_colors('[m]n[m] = get magnet then copy to clipboard', 'ly') + ", " + make_colors('s = search', 'lg') + ", " + make_colors('[N]n[N] = length list, default = 3', 'lm') + ", " + make_colors('h = back to home page', 'lc') + ", " + make_colors("[q]uit | e[x]it", 'lr') + "]: "
         q = raw_input(qnote)
-        while 1:
-            if not q:
-                print("\b")
-            else:
-                break
-        if q: q = q.strip()
-        if q.isdigit():
-            if int(q) <= len(data_result_list) + 1:
-                url = self.URL + data_result_list[int(q) - 1].get('link')
+        #while 1:
+            #if not q:
+                #print("\b")
+            #else:
+                #break
+        if q:
+            q = q.strip()
+            if q.isdigit():
+                if int(q) <= len(data_result_list) + 1:
+                    url = self.URL + data_result_list[int(q) - 1].get('link')
+                    debug(url = url)
+                    # print(make_colors("URL: " + url, 'ly'))
+                    data_details = self.detail(url)
+                    debug(data_details = data_details)
+                    debug(magnet = data_details.get('magnet'))
+                    debug(itorrent = data_details.get('itorrent'))
+                    if data_details.get('itorrent'):
+                        download_path = self.CONFIG.get_config('download', 'path') or os.path.join(os.path.dirname(os.path.realpath(__file__)), 'downloads')
+                        if not os.path.isdir(download_path):
+                            try:
+                                os.makedirs(download_path)
+                            except Exception as e:
+                                ctraceback.CTraceback(*sys.exc_info())
+                                if os.getenv('TRACEBACK'):
+                                    print(make_colors("ERROR:", 'lw', 'r'))
+                                    print(make_colors(traceback.format_exc(), 'ly'))
+                                else:
+                                    print(make_colors("ERROR:", 'lw', 'r'))
+                                    print(make_colors(str(e), 'lc'))
+    
+                        with open(os.path.join(download_path, data_details.get('name') + '.torrent'), 'w') as cf:
+                            for chunk in self.SESS.get(data_details.get('itorrent'), stream = True, headers = self.HEADERS):
+                                cf.write(chunk.decode())
+            elif q[-1] == 'm' and q[:-1].isdigit():
+                url = self.URL + data_result_list[int(q[:-1]) - 1].get('link')
+                debug(url = url)
+                # clipboard.copy(url)
+                # pause()
+                # print(make_colors("URL: " + url, 'ly'))
+                data_details = self.detail(url)
+                debug(data_details = data_details)
+                debug(magnet = data_details.get('magnet'))
+                debug(itorrent = data_details.get('itorrent'))
+                if data_details.get('magnet'):
+                    clipboard.copy(data_details.get('magnet'))
+            elif q[0] == 'm' and q[1:].isdigit():
+                url = self.URL + data_result_list[int(q[1:]) - 1].get('link')
                 debug(url = url)
                 # print(make_colors("URL: " + url, 'ly'))
                 data_details = self.detail(url)
+                debug(data_details = data_details)
                 debug(magnet = data_details.get('magnet'))
                 debug(itorrent = data_details.get('itorrent'))
-                if data_details.get('itorrent'):
-                    download_path = self.CONFIG.get_config('download', 'path') or os.path.join(os.path.dirname(os.path.realpath(__file__)), 'downloads')
-                    if not os.path.isdir(download_path):
-                        try:
-                            os.makedirs(download_path)
-                        except Exception as e:
-                            if os.getenv('TRACEBACK'):
-                                print(make_colors("ERROR:", 'lw', 'r'))
-                                print(make_colors(traceback.format_exc(), 'ly'))
-                            else:
-                                print(make_colors("ERROR:", 'lw', 'r'))
-                                print(make_colors(str(e), 'lc'))
-
-                    with open(os.path.join(download_path, name + '.torrent'), 'w') as cf:
-                        for chunk in self.SESS.get(itorrent, stream = True, headers = self.HEADERS):
-                            cf.write(chunk)
-        elif q[-1] == 'm' and q[:-1].isdigit():
-            url = self.URL + data_result_list[int(q[:-1]) - 1].get('link')
-            debug(url = url)
-            # clipboard.copy(url)
-            # pause()
-            # print(make_colors("URL: " + url, 'ly'))
-            data_details = self.detail(url)
-            debug(magnet = data_details.get('magnet'))
-            debug(itorrent = data_details.get('itorrent'))
-            if data_details.get('magnet'):
-                clipboard.copy(data_details.get('magnet'))
-        elif q[0] == 'm' and q[1:].isdigit():
-            url = self.URL + data_result_list[int(q[1:]) - 1].get('link')
-            debug(url = url)
-            # print(make_colors("URL: " + url, 'ly'))
-            data_details = self.detail(url)
-            debug(magnet = data_details.get('magnet'))
-            debug(itorrent = data_details.get('itorrent'))
-            if data_details.get('magnet'):
-                clipboard.copy(data_details.get('magnet'))
-        elif q[-1] == 'm' and q[:-1].isdigit():
-            nlist = int(q[:-1])
-            return self.navigator(query_search, stype, url_query, downloadPath, overwrite, home, nlist, page_return, proxies)
-        elif q[0] == 'm' and q[1:].isdigit():
-            nlist = int(q[1:])
-            return self.navigator(query_search, stype, url_query, downloadPath, overwrite, home, nlist, page_return, proxies)
-        elif q == 's':
-            qs = raw_input(make_colors("search:", 'ly') + " ")
-            if qs:
-                return self.navigator(qs)
-        elif q.lower() in ('q', 'quit', 'exit', 'x'):
-            sys.exit(make_colors('System Exit ....', 'b', 'ly'))
-        elif  q.lower() == 'h':
-            self.navigator(proxies = proxies, nlist = nlist, downloadPath = downloadPath, home = home)
-            #return self.navigator(query_search, stype,
-                                  #url_query,
-                                 #downloadPath,
-                                 #overwrite,
-                                 #home,
-                                 #nlist,
-                                 #page_return,
-                                 #proxies)
-        else:
-            if q: query_search = q
-            return self.navigator(query_search, downloadPath = downloadPath, overwrite = overwrite, nlist = nlist, page_return = page_return, proxies = proxies)
-        return q
+                if data_details.get('magnet'):
+                    clipboard.copy(data_details.get('magnet'))
+            elif q[-1] == 'N' and q[:-1].isdigit():
+                nlist = int(q[:-1])
+                return self.navigator(query_search, stype, url_query, downloadPath, overwrite, home, nlist, page_return, proxies)
+            elif q[0] == 'N' and q[1:].isdigit():
+                nlist = int(q[1:])
+                return self.navigator(query_search, stype, url_query, downloadPath, overwrite, home, nlist, page_return, proxies)
+            elif q == 's':
+                qs = raw_input(make_colors("search:", 'ly') + " ")
+                if qs:
+                    return self.navigator(qs)
+            elif q.lower() in ('q', 'quit', 'exit', 'x'):
+                sys.exit(make_colors('System Exit ....', 'lw', 'r'))
+            elif  q.lower() == 'h':
+                self.navigator(proxies = proxies, nlist = nlist, downloadPath = downloadPath, home = home)
+            else:
+                return self.navigator(q, downloadPath = downloadPath, overwrite = overwrite, nlist = nlist, page_return = page_return, proxies = proxies)
+        return self.navigator(None, downloadPath = downloadPath, overwrite = overwrite, nlist = nlist, page_return = page_return, proxies = proxies)
 
     @classmethod
     def run(self, query_search = None, stype = None, url_query = None, downloadPath = ".", overwrite = None, home = False, nlist = 3, page_return = None, proxies = None):
         q = self.navigator(query_search, stype, url_query, downloadPath, overwrite, home, nlist, page_return, proxies)
-        if q:
-            if q.lower() in ('exit', 'quit', 'x', 'q'):
-                sys.exit()
+        if q and q.lower() in ('exit', 'quit', 'x', 'q'): sys.exit()
         return self.run(query_search, stype, url_query, downloadPath, overwrite, home, nlist, page_return, proxies)
 
     @classmethod
