@@ -80,7 +80,7 @@ class TorrentDownloads(object):
 
     BAR = progressbar.ProgressBar(prefix = prefix, variables = variables, max_value = 100, max_error = False)
     MAX_ERROR = CONFIG.get_config('error', 'max_try', '10')
-    FEATURES = 'html.parser'
+    FEATURES = CONFIG.get_config('bs', 'features') or 'html.parser'
 
     HEADERS = {
         'accept':'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
@@ -438,10 +438,12 @@ class TorrentDownloads(object):
         if not content:
             content = self.SESS.get(url).content
             debug(content = content)
-            self.write(content)
-        b = bs(content, 'lxml')
+            self.write("detail", content)
+        b = bs(content, self.FEATURES)
         self.write('detail', content)
         left_container = self.valid(b, 'find', ('div', {'class':'left_container'}))
+        debug(left_container = left_container)
+        if not left_container: left_container = b.find('div', class_='left_container')
         debug(left_container = left_container)
         if not left_container:
             left_container = b.find('div', {'class':'left_container'})
@@ -477,12 +479,14 @@ class TorrentDownloads(object):
         debug(hash_secret = hash_secret)
 
         magnet_data = self.valid(grey_bar1[3], 'find', ('p'), 'debug')
-        print(f"magnet_data: {magnet_data}")
+        
         debug(magnet_data = magnet_data)
 
         if magnet_data:
             magnet = self.valid(magnet_data, 'find', ('a'))
-            if magnet: magnet = magnet.get('href')
+            if magnet:
+                magnet = magnet.get('href')
+                print(f"magnet: {magnet}")
         debug(magnet = magnet)
 
         added_data = self.valid(grey_bar1[6], 'find', 'p')
@@ -631,8 +635,7 @@ class TorrentDownloads(object):
                 debug(data_details = data_details)
                 debug(magnet = data_details.get('magnet'))
                 debug(itorrent = data_details.get('itorrent'))
-                if data_details.get('magnet'):
-                    clipboard.copy(data_details.get('magnet'))
+                if data_details.get('magnet'): clipboard.copy(data_details.get('magnet'))
             elif q[0] == 'm' and q[1:].isdigit():
                 url = self.URL + data_result_list[int(q[1:]) - 1].get('link')
                 debug(url = url)
