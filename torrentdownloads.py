@@ -20,7 +20,7 @@ from pydebugger.debug import debug
         # return
 from configset import configset
 #import configset as configme
-import progressbar
+# import progressbar
 import traceback
 import time
 import re
@@ -40,6 +40,7 @@ import get_version
 import json, ast
 
 from rich import traceback as rich_traceback, console
+from rich.progress import Progress, TaskID, SpinnerColumn, TextColumn, BarColumn, DownloadColumn, TransferSpeedColumn
 import shutil
 rich_traceback.install(theme = 'fruity', max_frames = 30, width = shutil.get_terminal_size()[0])
 console = console.Console()
@@ -78,7 +79,12 @@ class TorrentDownloads(object):
     prefix = '{variables.task} >> {variables.subtask} '
     variables =  {'task': '--', 'subtask': '--'}
 
-    BAR = progressbar.ProgressBar(prefix = prefix, variables = variables, max_value = 100, max_error = False)
+    # BAR = progressbar.ProgressBar(prefix = prefix, variables = variables, max_value = 100, max_error = False)
+    BAR = Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console
+        )
     MAX_ERROR = CONFIG.get_config('error', 'max_try', '10')
     FEATURES = CONFIG.get_config('bs', 'features') or 'html.parser'
 
@@ -148,31 +154,53 @@ class TorrentDownloads(object):
         debug(url = url)
         req = False
         n = 0
-        while 1:
-            try:
-                # content = self.SESS.get(self.URL).content
-                req = getattr(self.SESS, method)(url, **kwargs)
-                # if encoding:
-                req.encoding = req.apparent_encoding
-                break
-            except Exception as e:
-                ctraceback.CTraceback(*sys.exc_info())
-                task = make_colors("error", 'lw', 'r')
-                subtask = make_colors(e, 'ly') + " "
-                debug(n_try = n_try)
-                debug(n = n)
-                if not n == n_try:
-                    n+=1
-                    self.BAR.update(n, task = task, subtask = subtask)
-                    time.sleep(1)
-                else:
-                    self.BAR.finish()
-                    print(make_colors("error:", 'lw', 'r') + " " + make_colors(e, 'ly'))
-                    sys.exit(make_colors(traceback.format_exc(), 'r', 'lw'))
-        self.BAR.finish()
-        debug(req = req)
-        self.write('connect_req_result', req.content)
-        return req
+        
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console
+        ) as progress:
+            task = progress.add_task("Connect ...", total=None)
+            progress.update(task, description=f"Connect ...")
+            while 1:
+                try:
+                    # content = self.SESS.get(self.URL).content
+                    req = getattr(self.SESS, method)(url, **kwargs)
+                    # if encoding:
+                    req.encoding = req.apparent_encoding
+                    break
+                except Exception as e:
+                    ctraceback.CTraceback(*sys.exc_info(), print_it = False)
+                    # task = make_colors("error", 'lw', 'r')
+                    # subtask = make_colors(e, 'ly') + " "
+                    task = f"error: [white on red]{e}[/]. [#FFFF00]re-connecting...[/]"
+                    progress.update(task, description=task)
+                    debug(n_try = n_try)
+                    debug(n = n)
+                    if not n == n_try:
+                        n+=1
+                        task = f"error: [white on red]{e}[/]. [#FFFF00]re-connecting...[/] [#00FFFF]({n}/{n_try})[/]"
+                        progress.update(task, description=task)
+                        # self.BAR.update(n, task = task, subtask = subtask)
+                        time.sleep(1)
+                    else:
+                        task = f"error: [white on red]{e}[/]. [#FFFF00]re-connecting...[/] [#FF0000]failed after {n_try} tries![/]"
+                        progress.update(task, description=f"error: [white on red]{e}[/]. [#FFFF00]re-connecting...[/] [#FF0000]failed after {n_try} tries![/]")
+                        progress.stop()
+                        # self.BAR.finish()
+                        # print(make_colors("error:", 'lw', 'r') + " " + make_colors(e, 'ly'))
+                        # sys.exit(make_colors(traceback.format_exc(), 'r', 'lw'))
+                        raise Exception(make_colors("error:", 'lw', 'r') + " " + make_colors(e, 'ly'))
+            # self.BAR.finish()
+            debug(req = req)
+            self.write('connect_req_result', req.content)
+            if not req or not req.status_code == 200:
+                task = f"error: [white on red]Failed to connect to {url}[/]. [#FF0000]status code: {req.status_code if req else 'None'}[/]"
+                progress.update(task, description=task)
+                progress.stop()
+                # print(make_colors("error:", 'lw', 'r') + " " + make_colors("Failed to connect to " + url, 'ly') + " " + make_colors("status code: " + str(req.status_code) if req else 'None', 'b', 'r'))
+                raise Exception(make_colors("error:", 'lw', 'r') + " " + make_colors("Failed to connect to " + url, 'ly') + " " + make_colors("status code: " + str(req.status_code) if req else 'None', 'b', 'r'))
+            return req
 
     @classmethod
     def write(self, name, content):
@@ -203,9 +231,9 @@ class TorrentDownloads(object):
     def makeList(self, alist, ncols, vertically=True, file=None):
         debug(alist = alist)
         # pause()
-        from distutils.version import StrictVersion  # pep 386
+        from packaging.version import Version  # Use packaging instead of distutils
         import prettytable as ptt  # pip install prettytable
-        assert StrictVersion(ptt.__version__) >= StrictVersion(
+        assert Version(ptt.__version__) >= Version(
             '0.7')  # for PrettyTable.vrules property
         #debug(len_L = len(alist))
         #debug(ncols = ncols)
