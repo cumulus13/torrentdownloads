@@ -173,18 +173,18 @@ class TorrentDownloads(object):
                     ctraceback.CTraceback(*sys.exc_info(), print_it = False)
                     # task = make_colors("error", 'lw', 'r')
                     # subtask = make_colors(e, 'ly') + " "
-                    task = f"error: [white on red]{e}[/]. [#FFFF00]re-connecting...[/]"
+                    task = progress.add_task(f"error: [white on red]{e}[/]. [#FFFF00]re-connecting...[/]", total = None)
                     progress.update(task, description=task)
                     debug(n_try = n_try)
                     debug(n = n)
                     if not n == n_try:
                         n+=1
-                        task = f"error: [white on red]{e}[/]. [#FFFF00]re-connecting...[/] [#00FFFF]({n}/{n_try})[/]"
+                        task = progress.add_task(f"error: [white on red]{e}[/]. [#FFFF00]re-connecting...[/] [#00FFFF]({n}/{n_try})[/]", total = None)
                         progress.update(task, description=task)
                         # self.BAR.update(n, task = task, subtask = subtask)
                         time.sleep(1)
                     else:
-                        task = f"error: [white on red]{e}[/]. [#FFFF00]re-connecting...[/] [#FF0000]failed after {n_try} tries![/]"
+                        task = progress.add_task(f"error: [white on red]{e}[/]. [#FFFF00]re-connecting...[/] [#FF0000]failed after {n_try} tries![/]", total = None)
                         progress.update(task, description=f"error: [white on red]{e}[/]. [#FFFF00]re-connecting...[/] [#FF0000]failed after {n_try} tries![/]")
                         progress.stop()
                         # self.BAR.finish()
@@ -195,7 +195,7 @@ class TorrentDownloads(object):
             debug(req = req)
             self.write('connect_req_result', req.content)
             if not req or not req.status_code == 200:
-                task = f"error: [white on red]Failed to connect to {url}[/]. [#FF0000]status code: {req.status_code if req else 'None'}[/]"
+                task = progress.add_task(f"error: [white on red]Failed to connect to {url}[/]. [#FF0000]status code: {req.status_code if req else 'None'}[/]", total = None)
                 progress.update(task, description=task)
                 progress.stop()
                 # print(make_colors("error:", 'lw', 'r') + " " + make_colors("Failed to connect to " + url, 'ly') + " " + make_colors("status code: " + str(req.status_code) if req else 'None', 'b', 'r'))
