@@ -51,6 +51,8 @@ if sys.version_info.major == 3:
 else:
     from urllib import unquote, quote
 
+from richcolorlog import setup_logging
+setup_logging(exceptions = ['pika', 'kafka', 'zmq', 'urllib3', 'requests', 'chardet', 'idna', 'httpcore', 'httpx', 'hpack', 'hyperframe', 'websockets', 'aiohttp', 'aiokafka', 'pika', 'pydantic', 'fastapi', 'uvicorn'])
 def convert_size(size_bytes):
     if (size_bytes == 0):
         return '0B'
