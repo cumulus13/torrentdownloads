@@ -21,3 +21,6 @@ build/
 *.egg-info/
 traceback.log
 __pycache__/
+
+# Added entries (1 items)
+*sublime*
